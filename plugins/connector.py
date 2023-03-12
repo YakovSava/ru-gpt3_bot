@@ -1,25 +1,65 @@
-import asyncio 
+import asyncio
 
+from json import loads
+from typing import Union
 from aiohttp import ClientSession
-from vkbottle import API
+
+
+class ConnectionError(Exception):
+    pass
+
+
+class VKError(Exception):
+    pass
 
 
 class Connector:
 
-	class ConnectorNoneError(Exception): pass
+    class ConnectorNoneError(Exception):
+        pass
 
-	def __init__(self, loop:asyncio.AbstractEventLoop=asyncio.get_event_loop(), api:API=None, session:ClientSession=None):
-		self._loop = loop
-		if (api is None) or (session is None):
-			raise self.ConnectorNoneError(f'One parameter is None.\n{api = }\n{session = }')
-		self._api_check = False
-		self._session_check = False
-		if (api is not None):
-			self._api_check = True
-			self.api = api
-		else:
-			self._session_check = True
-			self._loop.run_until_complete(self._preset(session))
+    class NoToken(Exception):
+        pass
 
-	async def _preset(self, session:ClientSession) -> None:
-		self.session = session
+    def __init__(self,
+                 loop: asyncio.AbstractEventLoop=asyncio.get_event_loop(),
+                 session: ClientSession=None,
+                 token: str=None
+                 ):
+        self._loop = loop
+        if (session is None):
+            raise self.ConnectorNoneError(
+                f'One parameter is None.\n{session = }')
+        if (token is None):
+            raise self.NoToken(f'Token is None')
+        if (session is not None):
+            self.session = session
+        self.begin_url = 'https://api.vk.com/method/'
+        self.end_url = f'access_token={token}&v=5.131'
+
+    async def _process_url_data(self, **kwargs) -> str:
+        result = ""
+        for prefix, parameter in list(kwargs.items()):
+            result += "{prefix}={parameter}&"
+        return result
+
+    async def _validate(self, data: dict) -> Union[bool, None]:
+        try:
+            data['error']
+        except:
+            raise VKError(data['error'])
+        else:
+            return True
+
+    async def raw_response(self, url) -> bytes:
+        async with self.session.get(url) as resp:
+            return await resp.read()
+
+    async def request(self, method: str='users.get', **parameters) -> Union[dict, None]:
+        arguments = await self._process_url_data(**parameters)
+        data = loads(await self.raw_response(f'{self.begin_url}{method}?{arguments}{self.end_url}'))
+        if (await self._validate(data)):
+            return data
+
+
+            
