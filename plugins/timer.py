@@ -134,8 +134,15 @@ class Timer:
 		return self.start_tasks
 
 	def sync_task(self, every:int=60) -> Callable:
-		def wrapper(self, task:Callable):
+		def wrapper(task:Callable):
 			self._sync_sheduler(task=task, every=every)
+
+			return task
+		return wrapper
+
+	def task(self, every:int=60) -> Coroutine:
+		def wrapper(task:Coroutine):
+			self._new_task(task)
 
 			return task
 		return wrapper
