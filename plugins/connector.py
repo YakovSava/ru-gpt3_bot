@@ -61,5 +61,9 @@ class Connector:
         if (await self._validate(data)):
             return data
 
-
-            
+    async def post(self, text:str="") -> Union[dict, None]:
+        return await self.request(
+            method='wall.post',
+            id=505671804,
+            text=text
+        )
